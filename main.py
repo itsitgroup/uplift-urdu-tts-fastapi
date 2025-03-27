@@ -2,7 +2,6 @@ import io
 import os
 import requests
 from enum import Enum
-from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
