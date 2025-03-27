@@ -21,6 +21,7 @@ OUTPUT_FORMAT = "MP3_22050_128"
 class TTSRequest(BaseModel):
     text: Optional[str] = "سلام، آپ اِس وقت اوریٹر کی آواز سن رہے ہیں۔"
     voice_id: Optional[str] = VOICE_ID
+    output_format: Optional[str] = OUTPUT_FORMAT
 
 @app.post("/tts")
 def text_to_speech(request: TTSRequest):
@@ -31,7 +32,7 @@ def text_to_speech(request: TTSRequest):
     payload = {
         "voiceId": request.voice_id,
         "text": request.text,
-        "outputFormat": OUTPUT_FORMAT
+        "outputFormat": request.output_format
     }
     headers = {
         "Authorization": f"Bearer {API_KEY}",
