@@ -41,41 +41,62 @@ class OutputFormat(str, Enum):
     MP3_22050_128 = "MP3_22050_128"
     OGG_22050_16 = "OGG_22050_16"
     ULAW_8000_8 = "ULAW_8000_8"
+
 class TTSRequest(BaseModel):
     text: Optional[str] = Field(..., max_length=2500)
     voice_id: Optional[VoiceID] = VoiceID.dada_jee
     output_format: Optional[OutputFormat] = OutputFormat.MP3_22050_128
 
+def get_media_type(output_format: OutputFormat) -> str:
+    """Map output format to appropriate media type"""
+    format_map = {
+        "WAV": "audio/wav",
+        "MP3": "audio/mpeg",
+        "OGG": "audio/ogg",
+        "ULAW": "audio/basic"
+    }
+    return format_map[output_format.value.split("_")[0]]
+
 @app.post("/tts")
-def text_to_speech(request: TTSRequest):
+async def text_to_speech(request: TTSRequest):
     """
-    Call Uplift AI's Orator TTS API with the given text and return the audio.
-    Accepts request as JSON body.
+    Convert text to speech using Uplift AI's Orator TTS API
+    
+    Parameters:
+    - text: Input text (max 2500 characters)
+    - voice_id: Voice selection (see VoiceID enum for options)
+    - output_format: Audio format (see OutputFormat enum for options)
+    
+    Returns: StreamingResponse with audio content
     """
     payload = {
-        "voiceId": request.voice_id,
+        "voiceId": request.voice_id.value,
         "text": request.text,
-        "outputFormat": request.output_format
+        "outputFormat": request.output_format.value
     }
+    
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-
     try:
         response = requests.post(API_URL, json=payload, headers=headers)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        raise HTTPException(status_code=err.response.status_code, detail=err.response.text)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Error during API request: {exc}")
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
-
-    # Optionally, get the audio duration from response headers if needed
+        raise HTTPException(status_code=500, detail=f"API request failed: {str(exc)}")
+    # Determine correct media type based on output format
+    media_type = get_media_type(request.output_format)
+    
+    # Get audio duration from headers if available
     audio_duration = response.headers.get("x-uplift-ai-audio-duration", "unknown")
-    print(f"Audio duration: {audio_duration}ms")
-
-    # Return the binary audio content as a streaming response
-    return StreamingResponse(io.BytesIO(response.content), media_type="audio/mpeg")
+    
+    return StreamingResponse(
+        content=io.BytesIO(response.content),
+        media_type=media_type,
+        headers={"X-Audio-Duration": audio_duration}
+    ) 
 
 @app.post("/tts-stream")
 async def stream_tts(request: TTSRequest):
