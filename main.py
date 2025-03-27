@@ -59,9 +59,36 @@ def text_to_speech(request: TTSRequest):
 @app.post("/tts-stream")
 async def stream_tts(request: TTSRequest):
     """
-    Stream Uplift AI's TTS response in ULAW_8000_8 format.
-    Uses chunked transfer encoding for real-time playback.
+    Stream Uplift AI's TTS response with configurable voice and format options.
+    
+    Parameters:
+    - text: The text to synthesize (max 2500 characters)
+    - voice_id: Voice identifier (default: v_30s70t3a)
+        Available options: 
+        v_kwmp7zxt (Gen Z), 
+        v_yypgzenx (Dada Jee), 
+        v_30s70t3a (Nostalgic News)
+    - output_format: Audio format (default: MP3_22050_128)
+        Available options:
+        WAV_22050_16, 
+        WAV_22050_32, 
+        MP3_22050_32, 
+        MP3_22050_64, 
+        MP3_22050_128, 
+        OGG_22050_16, 
+        ULAW_8000_8
+    Returns:
+    - Streaming audio response with Transfer-Encoding: chunked
+    - Content-Type: audio/basic (for ULAW) or appropriate mime type
+    
+    Example request:
+    {
+        "text": "تست آڈیو",
+        "voice_id": "v_30s70t3a",
+        "output_format": "ULAW_8000_8"
+    }
     """
+   
     payload = {
         "voiceId": request.voice_id,
         "text": request.text,
