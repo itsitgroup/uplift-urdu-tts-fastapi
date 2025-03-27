@@ -1,6 +1,7 @@
 import io
 import os
 import requests
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -18,9 +19,8 @@ OUTPUT_FORMAT = "MP3_22050_128"
 
 # Request model for JSON body
 class TTSRequest(BaseModel):
-    text: str = "سلام، آپ اِس وقت اوریٹر کی آواز سن رہے ہیں۔"
-    voice_id: str = VOICE_ID
-    output_format: str = OUTPUT_FORMAT
+    text: Optional[str] = "سلام، آپ اِس وقت اوریٹر کی آواز سن رہے ہیں۔"
+    voice_id: Optional[str] = VOICE_ID
 
 @app.post("/tts")
 def text_to_speech(request: TTSRequest):
