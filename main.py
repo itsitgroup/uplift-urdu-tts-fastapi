@@ -79,7 +79,7 @@ async def stream_tts(request: TTSRequest):
         ULAW_8000_8
     Returns:
     - Streaming audio response with Transfer-Encoding: chunked
-    - Content-Type: audio/basic (for ULAW) or appropriate mime type
+    - Content-Type: appropriate mime type based on format
     
     Example request:
     {
@@ -88,34 +88,51 @@ async def stream_tts(request: TTSRequest):
         "output_format": "ULAW_8000_8"
     }
     """
-   
+    # Map output formats to media types
+    media_types = {
+        "WAV_22050_16": "audio/wav",
+        "WAV_22050_32": "audio/wav",
+        "MP3_22050_32": "audio/mpeg",
+        "MP3_22050_64": "audio/mpeg",
+        "MP3_22050_128": "audio/mpeg",
+        "OGG_22050_16": "audio/ogg",
+        "ULAW_8000_8": "audio/basic"
+    }
+
     payload = {
         "voiceId": request.voice_id,
         "text": request.text,
         "outputFormat": request.output_format
     }
+    
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
+
     try:
-        # Stream the response with chunked encoding
         uplink_response = requests.post(
             STREAM_API_URL,
             json=payload,
             headers=headers,
-            stream=True  # Critical for streaming
+            stream=True
         )
         uplink_response.raise_for_status()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Uplift API error: {str(e)}")
-    # Forward the streaming response with correct headers
+
+    # Determine media type from output format
+    media_type = media_types.get(
+        request.output_format, 
+        "audio/mpeg"  # Default to MP3 if unknown format
+    )
+
     return StreamingResponse(
         uplink_response.iter_content(chunk_size=1024),
-        media_type="audio/basic",  # For ULAW/8000Hz
+        media_type=media_type,
         headers={
             "Transfer-Encoding": "chunked",
-            "X-Audio-Format": "ULAW_8000_8"
+            "X-Audio-Format": request.output_format
         }
     )
 
