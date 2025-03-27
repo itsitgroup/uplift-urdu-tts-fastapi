@@ -63,14 +63,17 @@
                 {
                     "text": "تست آڈیو",
                     "voice_id": "v_kwmp7zxt",
-                    "output_format": "ULAW_8000_8"
+                    "output_format": "MP3_22050_128"
                 }
             </textarea>
         </div>
 
         <button onclick="streamAudio()">Stream Audio</button>
         <div id="status"></div>
-        <audio id="audioPlayer" controls></audio>
+        <audio id="audioPlayer" controls autoplay>
+            <source id="audioSource" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
     </div>
 
     <script>
@@ -81,49 +84,65 @@
             const audioPlayer = document.getElementById('audioPlayer');
 
             try {
-                statusEl.textContent = "Starting stream...";
+                let parsedBody;
+                try {
+                    parsedBody = JSON.parse(requestBody);
+                } catch (e) {
+                    throw new Error('Invalid JSON in request body');
+                }
+                if (!parsedBody.text || !parsedBody.voice_id || !parsedBody.output_format) {
+                    throw new Error('Missing required fields: text, voice_id, or output_format');
+                }
 
+                statusEl.textContent = "Starting stream...";
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: requestBody
+                    body: JSON.stringify(parsedBody)
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Server error: ${response.status} - ${errorText}`);
                 }
 
-                statusEl.textContent = "Streaming started... (buffering)";
-
-                // Create a media source and object URL
+                const contentType = response.headers.get('content-type');
+                
                 const mediaSource = new MediaSource();
                 audioPlayer.src = URL.createObjectURL(mediaSource);
 
-                mediaSource.addEventListener('sourceopen', () => {
-                    const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg'); // Adjust if using other formats
+                mediaSource.addEventListener('sourceopen', async () => {
+                    const sourceBuffer = mediaSource.addSourceBuffer(contentType);
                     const reader = response.body.getReader();
-
-                    function pump() {
-                        reader.read().then(({ done, value }) => {
-                            if (done) {
-                                mediaSource.endOfStream();
-                                statusEl.textContent = "Stream completed";
-                                return;
-                            }
-
-                            sourceBuffer.appendBuffer(value);
-                            pump();
-                        });
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        
+                        if (done) {
+                            mediaSource.endOfStream();
+                            statusEl.textContent = "Stream completed";
+                            break;
+                        }
+                        if (sourceBuffer.updating) {
+                            await new Promise(resolve => {
+                                sourceBuffer.addEventListener('updateend', resolve, { once: true });
+                            });
+                        }
+                        sourceBuffer.appendBuffer(value);
+                        statusEl.textContent = "Streaming... " + value.length + " bytes received";
                     }
+                });
 
-                    pump();
+                mediaSource.addEventListener('error', (e) => {
+                    console.error('MediaSource error:', e);
+                    statusEl.textContent = "Streaming error occurred";
                 });
 
             } catch (error) {
                 statusEl.textContent = `Error: ${error.message}`;
-                console.error('Streaming error:', error);
+                console.error('Request error:', error);
+                audioPlayer.src = '';
             }
         }
     </script>
