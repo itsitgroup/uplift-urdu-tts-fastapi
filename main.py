@@ -4,12 +4,21 @@ import requests
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins (for development only)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (including OPTIONS)
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Uplift AI Orator API endpoint and credentials
 API_URL = "https://api.upliftai.org/v1/synthesis/text-to-speech"
