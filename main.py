@@ -13,6 +13,8 @@ app = FastAPI()
 
 # Uplift AI Orator API endpoint and credentials
 API_URL = "https://api.upliftai.org/v1/synthesis/text-to-speech"
+STREAM_API_URL = "https://api.upliftai.org/v1/synthesis/text-to-speech/stream"
+
 API_KEY = os.getenv("UPLIFT_AI_API_KEY")
 VOICE_ID = "v_30s70t3a"  # recommended for realistic sound in rural Punjab accent
 OUTPUT_FORMAT = "MP3_22050_128"
@@ -53,6 +55,43 @@ def text_to_speech(request: TTSRequest):
 
     # Return the binary audio content as a streaming response
     return StreamingResponse(io.BytesIO(response.content), media_type="audio/mpeg")
+
+@app.post("/tts-stream")
+async def stream_tts(request: TTSRequest):
+    """
+    Stream Uplift AI's TTS response in ULAW_8000_8 format.
+    Uses chunked transfer encoding for real-time playback.
+    """
+    payload = {
+        "voiceId": request.voice_id,
+        "text": request.text,
+        "outputFormat": request.output_format
+    }
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    try:
+        # Stream the response with chunked encoding
+        uplink_response = requests.post(
+            STREAM_API_URL,
+            json=payload,
+            headers=headers,
+            stream=True  # Critical for streaming
+        )
+        uplink_response.raise_for_status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Uplift API error: {str(e)}")
+    # Forward the streaming response with correct headers
+    return StreamingResponse(
+        uplink_response.iter_content(chunk_size=1024),
+        media_type="audio/basic",  # For ULAW/8000Hz
+        headers={
+            "Transfer-Encoding": "chunked",
+            "X-Audio-Format": "ULAW_8000_8"
+        }
+    )
+
 
 if __name__ == "__main__":
     import uvicorn
