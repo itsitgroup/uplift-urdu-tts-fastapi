@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>TTS Stream Player</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        #status {
+            margin-top: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>TTS Stream Player</h1>
+
+        <div class="input-group">
+            <label>Backend URL:</label>
+            <input type="text" id="backendUrl" value="http://localhost:8000/tts-stream">
+        </div>
+
+        <div class="input-group">
+            <label>Request Body (JSON):</label>
+            <textarea id="requestBody" rows="6">
+                {
+                    "text": "تست آڈیو",
+                    "voice_id": "v_kwmp7zxt",
+                    "output_format": "ULAW_8000_8"
+                }
+            </textarea>
+        </div>
+
+        <button onclick="streamAudio()">Stream Audio</button>
+        <div id="status"></div>
+        <audio id="audioPlayer" controls></audio>
+    </div>
+
+    <script>
+        async function streamAudio() {
+            const url = document.getElementById('backendUrl').value;
+            const requestBody = document.getElementById('requestBody').value;
+            const statusEl = document.getElementById('status');
+            const audioPlayer = document.getElementById('audioPlayer');
+
+            try {
+                statusEl.textContent = "Starting stream...";
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: requestBody
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                statusEl.textContent = "Streaming started... (buffering)";
+
+                // Create a media source and object URL
+                const mediaSource = new MediaSource();
+                audioPlayer.src = URL.createObjectURL(mediaSource);
+
+                mediaSource.addEventListener('sourceopen', () => {
+                    const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg'); // Adjust if using other formats
+                    const reader = response.body.getReader();
+
+                    function pump() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) {
+                                mediaSource.endOfStream();
+                                statusEl.textContent = "Stream completed";
+                                return;
+                            }
+
+                            sourceBuffer.appendBuffer(value);
+                            pump();
+                        });
+                    }
+
+                    pump();
+                });
+
+            } catch (error) {
+                statusEl.textContent = `Error: ${error.message}`;
+                console.error('Streaming error:', error);
+            }
+        }
+    </script>
+</body>
+
+</html>
