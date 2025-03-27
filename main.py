@@ -1,11 +1,12 @@
 import io
 import os
 import requests
+from enum import Enum
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,11 +29,22 @@ API_KEY = os.getenv("UPLIFT_AI_API_KEY")
 VOICE_ID = "v_30s70t3a"  # recommended for realistic sound in rural Punjab accent
 OUTPUT_FORMAT = "MP3_22050_128"
 
-# Request model for JSON body
+class VoiceID(str, Enum):
+    gen_z = "v_kwmp7zxt"
+    dada_jee = "v_yypgzenx"
+    nostalgic_news = "v_30s70t3a"
+class OutputFormat(str, Enum):
+    WAV_22050_16 = "WAV_22050_16"
+    WAV_22050_32 = "WAV_22050_32"
+    MP3_22050_32 = "MP3_22050_32"
+    MP3_22050_64 = "MP3_22050_64"
+    MP3_22050_128 = "MP3_22050_128"
+    OGG_22050_16 = "OGG_22050_16"
+    ULAW_8000_8 = "ULAW_8000_8"
 class TTSRequest(BaseModel):
-    text: Optional[str] = "سلام، آپ اِس وقت اوریٹر کی آواز سن رہے ہیں۔"
-    voice_id: Optional[str] = VOICE_ID
-    output_format: Optional[str] = OUTPUT_FORMAT
+    text: Optional[str] = Field(..., max_length=2500)
+    voice_id: Optional[VoiceID] = VoiceID.dada_jee
+    output_format: Optional[OutputFormat] = OutputFormat.MP3_22050_128
 
 @app.post("/tts")
 def text_to_speech(request: TTSRequest):
