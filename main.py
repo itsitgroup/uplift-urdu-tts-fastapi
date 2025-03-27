@@ -3,6 +3,7 @@ import os
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,15 +16,22 @@ API_KEY = os.getenv("UPLIFT_AI_API_KEY")
 VOICE_ID = "v_30s70t3a"  # recommended for realistic sound in rural Punjab accent
 OUTPUT_FORMAT = "MP3_22050_128"
 
-@app.get("/tts")
-def text_to_speech(text: str = "سلام، آپ اِس وقت اوریٹر کی آواز سن رہے ہیں۔"):
+# Request model for JSON body
+class TTSRequest(BaseModel):
+    text: str = "سلام، آپ اِس وقت اوریٹر کی آواز سن رہے ہیں۔"
+    voice_id: str = VOICE_ID
+    output_format: str = OUTPUT_FORMAT
+
+@app.post("/tts")
+def text_to_speech(request: TTSRequest):
     """
-    Call Uplift AI’s Orator TTS API with the given text and return the audio.
+    Call Uplift AI's Orator TTS API with the given text and return the audio.
+    Accepts request as JSON body.
     """
     payload = {
-        "voiceId": VOICE_ID,
-        "text": text,
-        "outputFormat": OUTPUT_FORMAT
+        "voiceId": request.voice_id,
+        "text": request.text,
+        "outputFormat": request.output_format
     }
     headers = {
         "Authorization": f"Bearer {API_KEY}",
