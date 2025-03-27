@@ -31,7 +31,7 @@ def text_to_speech(request: TTSRequest):
     payload = {
         "voiceId": request.voice_id,
         "text": request.text,
-        "outputFormat": request.output_format
+        "outputFormat": OUTPUT_FORMAT
     }
     headers = {
         "Authorization": f"Bearer {API_KEY}",
