@@ -90,9 +90,6 @@
                 } catch (e) {
                     throw new Error('Invalid JSON in request body');
                 }
-                if (!parsedBody.text || !parsedBody.voice_id || !parsedBody.output_format) {
-                    throw new Error('Missing required fields: text, voice_id, or output_format');
-                }
 
                 statusEl.textContent = "Starting stream...";
                 const response = await fetch(url, {
