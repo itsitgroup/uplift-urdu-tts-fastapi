@@ -116,21 +116,48 @@
                 mediaSource.addEventListener('sourceopen', async () => {
                     const sourceBuffer = mediaSource.addSourceBuffer(contentType);
                     const reader = response.body.getReader();
+                    const queue = [];
+                    let isProcessing = false;
+                    async function processQueue() {
+                        if (isProcessing || queue.length === 0) return;
+                        
+                        isProcessing = true;
+                        const chunk = queue.shift();
+
+                        try {
+                            if (!sourceBuffer.updating) {
+                                sourceBuffer.appendBuffer(chunk);
+                                statusEl.textContent = "Streaming... " + chunk.length + " bytes received";
+                            } else {
+                                queue.unshift(chunk);
+                            }
+                        } catch (error) {
+                            console.error('Error appending buffer:', error);
+                            statusEl.textContent = "Error appending buffer: " + error.message;
+                        }
+
+                        await new Promise(resolve => {
+                            sourceBuffer.addEventListener('updateend', () => {
+                                isProcessing = false;
+                                resolve();
+                                processQueue();
+                            }, { once: true });
+                        });
+                    }
+
                     while (true) {
                         const { done, value } = await reader.read();
                         
                         if (done) {
+                            while (queue.length > 0 || isProcessing) {
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                            }
                             mediaSource.endOfStream();
                             statusEl.textContent = "Stream completed";
                             break;
                         }
-                        if (sourceBuffer.updating) {
-                            await new Promise(resolve => {
-                                sourceBuffer.addEventListener('updateend', resolve, { once: true });
-                            });
-                        }
-                        sourceBuffer.appendBuffer(value);
-                        statusEl.textContent = "Streaming... " + value.length + " bytes received";
+                        queue.push(value);
+                        processQueue();
                     }
                 });
 
